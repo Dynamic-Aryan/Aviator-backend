@@ -5,10 +5,23 @@ const cors = require("cors");
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server, { cors: { origin: "*" } });
 
-app.use(cors());
+// ✅ **Fix CORS Issues**
+const corsOptions = {
+    origin: ["http://localhost:5173", "https://your-frontend-domain.com"], // Update with your frontend URL
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type"],
+    credentials: true // Allow cookies and authentication headers
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// ✅ **Configure Socket.io with CORS**
+const io = socketIo(server, {
+    cors: corsOptions,
+    transports: ["websocket", "polling"]
+});
 
 let gameRunning = false;
 let bettingPhase = false;
@@ -19,7 +32,7 @@ let balances = { User1: 1000, User2: 1000 };
 let houseBalance = 100000;
 let countdown = 5;
 
-// Function to calculate crash dynamically
+// ✅ **Dynamic Crash Point Calculation**
 const calculateCrashPoint = () => {
     const totalBets = Object.values(bets).reduce((sum, bet) => sum + bet.amount, 0);
     const totalPlayers = Object.keys(bets).length;
@@ -28,19 +41,16 @@ const calculateCrashPoint = () => {
 
     let maxPossibleMultiplier;
 
-    // 🔴 House Protection Mode (If balance is too low)
     if (houseBalance < 80000) {
         console.log("⚠️ House is recovering losses...");
         return Math.random() < 0.5 ? 1.1 : (Math.random() * (2.5 - 1.3) + 1.3).toFixed(2);
     }
 
-    // 🟢 If no players bet, set high odds
     if (totalPlayers === 0) {
         console.log("🎭 No players bet, setting high crash.");
         return (Math.random() * (15 - 8) + 8).toFixed(2);
     }
 
-    // ⚖️ Dynamic Odds
     if (cashoutPercentage > 0.7) {
         maxPossibleMultiplier = Math.random() < 0.5 ? 4.5 : 5.5;
     } else if (cashoutPercentage > 0.4) {
@@ -52,7 +62,7 @@ const calculateCrashPoint = () => {
     return (Math.random() * (maxPossibleMultiplier - 1.2) + 1.2).toFixed(2);
 };
 
-// Betting Phase Countdown
+// ✅ **Betting Phase Countdown**
 const startBettingPhase = () => {
     bettingPhase = true;
     bets = {};
@@ -72,7 +82,7 @@ const startBettingPhase = () => {
     io.emit("bettingStart", { message: "Betting phase started!", countdown });
 };
 
-// Start Game
+// ✅ **Start Game**
 const startGame = () => {
     if (gameRunning) return;
 
@@ -83,18 +93,17 @@ const startGame = () => {
     console.log(`🚀 New round started! Crash at ${crashPoint}x`);
 
     let interval = setInterval(() => {
-        multiplier = (parseFloat(multiplier) + 0.02).toFixed(2); // Faster increase
+        multiplier = (parseFloat(multiplier) + 0.02).toFixed(2);
         io.emit("multiplierUpdate", { multiplier });
 
         if (parseFloat(multiplier) >= parseFloat(crashPoint)) {
             clearInterval(interval);
             endGame();
         }
-    }, 80); // Speed increased (was 100ms, now 50ms)
+    }, 80);
 };
 
-
-// End Game
+// ✅ **End Game**
 const endGame = () => {
     console.log(`🔥 Game crashed at ${crashPoint}x`);
     io.emit("gameCrash", { crashPoint, houseBalance });
@@ -111,7 +120,7 @@ const endGame = () => {
     setTimeout(startBettingPhase, 3000);
 };
 
-// Place Bet
+// ✅ **Place Bet**
 app.post("/bet", (req, res) => {
     const { playerId, amount } = req.body;
 
@@ -129,7 +138,7 @@ app.post("/bet", (req, res) => {
     res.json({ message: "Bet placed", playerId, amount, newBalance: balances[playerId] });
 });
 
-// Cashout
+// ✅ **Cashout**
 app.post("/cashout", (req, res) => {
     const { playerId } = req.body;
 
@@ -148,7 +157,18 @@ app.post("/cashout", (req, res) => {
     res.json({ message: "Cashed out successfully", winnings, newBalance: balances[playerId] });
 });
 
-// Start the first betting phase
+// ✅ **Handle WebSocket Connection**
+io.on("connection", (socket) => {
+    console.log("⚡ New client connected:", socket.id);
+
+    socket.on("disconnect", () => {
+        console.log("⚠️ Client disconnected:", socket.id);
+    });
+});
+
+// ✅ **Start First Betting Phase**
 setTimeout(startBettingPhase, 3000);
 
-server.listen(5000, () => console.log("🚀 Backend running on http://localhost:5000"));
+// ✅ **Start Server**
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => console.log(`🚀 Backend running on http://localhost:${PORT}`));
