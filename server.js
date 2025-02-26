@@ -8,7 +8,7 @@ const server = http.createServer(app);
 
 // ✅ **Fix CORS Issues**
 const corsOptions = {
-    origin: ["http://localhost:5173", "https://your-frontend-domain.com"], // Update with your frontend URL
+    origin: ["http://localhost:5173", "https://aviator-frontend-mocha.vercel.app"], // Update with your frontend URL
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type"],
     credentials: true // Allow cookies and authentication headers
